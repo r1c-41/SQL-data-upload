@@ -1,0 +1,19 @@
+-- Выгрузка данных с БД с перечнем заказчиков -головная компания с ИНН, и с общая сумма согласованных счетов по товарным категориям.
+-- Заказчики по Всей России, за последние 5 месяцев
+-- Перечень товарных категорий: 79,80,31096,42079,58,61,32,38,33,50,39244,42066,5022,50231,2631,75,39262
+
+SELECT  COALESCE (root_company_view.root_company_short_name, company.short_name) as "Название головной компании",
+root_company_view.root_company_inn as "ИНН",
+order_item.managed_category_id as "ID категории",
+round(sum(((offer.status_cache::json)->>'totalAmountInMainCurrency')::NUMERIC * ((offer_item.status_cache::json)->>'percent')::NUMERIC),2) as "Сумма счетов",
+from offer
+left join account on account.id = offer.source_account_id
+left join company on account.company_id = company.id
+left join root_company_view on child_company_id = company.id
+left join offer_item on offer.id = offer_id
+left join order_item on (offer_item.status_cache::json->>'orderItemId')::bigint = order_item.id
+where offer.creation_date >= '2024-01-23'
+AND offer.creation_date <= '2024-06-23'
+and order_item.managed_category_id in (79,80,31096,42079,58,61,32,38,33,50,39244,42066,5022,50231,2631,75,39262)
+and offer.state in ('ACCEPTED_BY_ACCEPTORS','PAID')
+group by root_company_view.root_company_inn,order_item.managed_category_id,"Название головной компании"
